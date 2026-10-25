@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Race Arena</title>
+    <style>
+      :root {
+        --bg: #0b1220;
+        --panel: rgba(15, 23, 42, 0.9);
+        --text: #e2e8f0;
+        --blue: #7dd3fc;
+        --red: #f87171;
+        --track: #1f2937;
+        --finish: #facc15;
+        --danger: #ef4444;
+      }
+
+      * { box-sizing: border-box; }
+
+      html, body {
+        margin: 0;
+        height: 100%;
+        background: radial-gradient(circle at top, #111827, #0b1220 58%);
+        color: var(--text);
+        font-family: Arial, Helvetica, sans-serif;
+      }
+
+      body {
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+      }
+
+      .game-shell {
+        position: relative;
+        width: min(92vw, 980px);
+        display: grid;
+        gap: 12px;
+      }
+
+      .menu-row {
+        display: flex;
+        justify-content: flex-start;
+      }
+
+      .menu-button {
+        display: inline-block;
+        padding: 10px 16px;
+        border: 1px solid rgba(255,255,255,0.18);
+        border-radius: 10px;
+        background: rgba(15, 118, 110, 0.8);
+        color: var(--text);
+        font-weight: 700;
+        text-decoration: none;
+        box-shadow: 0 8px 18px rgba(0,0,0,0.22);
+      }
+
+      .hud {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        background: var(--panel);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 14px;
+        padding: 12px 18px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+        font-size: 14px;
+      }
+
+      .stats {
+        display: flex;
+        gap: 14px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      .health-box {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .health-bar {
+        width: 120px;
+        height: 12px;
+        background: rgba(255,255,255,0.08);
+        border-radius: 999px;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.12);
+      }
+
+      .health-fill {
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, #4ade80, #86efac);
+        transition: width 0.12s ease;
+      }
+
+      .red-health-fill {
+        background: linear-gradient(90deg, #fca5a5, #f87171);
+      }
+
+      .progress-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 260px;
+      }
+
+      .progress-track {
+        position: relative;
+        width: 100%;
+        height: 16px;
+        border-radius: 999px;
+        overflow: hidden;
+        background: rgba(255,255,255,0.08);
+        border: 1px solid rgba(255,255,255,0.12);
+      }
+
+      .progress-fill {
+        height: 100%;
+        width: 0%;
+        border-radius: inherit;
+        transition: width 0.12s ease;
+      }
+
+      .blue { background: linear-gradient(90deg, #67e8f9, var(--blue)); }
+      .red { background: linear-gradient(90deg, #fca5a5, var(--red)); }
+
+      canvas {
+        display: block;
+        width: 100%;
+        height: auto;
+        background: linear-gradient(180deg, rgba(10,15,22,0.98), rgba(15,23,42,0.96));
+        border-radius: 18px;
+        border: 1px solid rgba(255,255,255,0.12);
+        box-shadow: 0 22px 40px rgba(0,0,0,0.35);
+      }
+
+      .overlay {
+        position: absolute;
+        inset: 0;
+        display: none;
+        place-items: center;
+        text-align: center;
+        background: rgba(2, 6, 23, 0.6);
+        border-radius: 18px;
+      }
+
+      .overlay.show {
+        display: grid;
+      }
+
+      .overlay-box {
+        background: rgba(15, 23, 42, 0.92);
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 20px;
+        padding: 24px 30px;
+        box-shadow: 0 16px 30px rgba(0,0,0,0.32);
+      }
+
+      .overlay-box h2 {
+        margin: 0 0 10px;
+        font-size: clamp(24px, 3vw, 40px);
+      }
+
+      .overlay-box p {
+        margin: 0;
+        color: rgba(226,232,240,0.82);
+      }
+
+      @media (max-width: 600px) {
+        .hud {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+
+        .progress-wrap {
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="game-shell">
+      <div class="menu-row">
+        <a class="menu-button" href="index.html">Back to Menu</a>
+      </div>
+
+      <div class="hud">
+        <div class="stats">
+          <span class="health-box">Blue HP: <strong id="blueHp">100</strong><div class="health-bar"><div id="blueHealthFill" class="health-fill"></div></div></span>
+          <span class="health-box">Red HP: <strong id="redHp">100</strong><div class="health-bar"><div id="redHealthFill" class="health-fill red-health-fill"></div></div></span>
+          <span>Level: <strong id="levelName">Level 1</strong></span>
+          <span>Time: <strong id="raceTimer">00:00</strong></span>
+        </div>
+
+        <div class="progress-wrap">
+          <div class="progress-track" aria-label="Blue progress"><div id="blueProgress" class="progress-fill blue"></div></div>
+          <div class="progress-track" aria-label="Red progress"><div id="redProgress" class="progress-fill red"></div></div>
+        </div>
+      </div>
+
+      <div class="arena-wrap">
+        <canvas id="gameCanvas" width="900" height="560"></canvas>
+
+        <div id="gameOverlay" class="overlay">
+          <div class="overlay-box">
+            <h2 id="overlayTitle">Blue Wins!</h2>
+            <p id="overlayText">Press R to race again.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
+      const blueProgressEl = document.getElementById('blueProgress');
+      const redProgressEl = document.getElementById('redProgress');
+      const blueHealthFillEl = document.getElementById('blueHealthFill');
+      const redHealthFillEl = document.getElementById('redHealthFill');
+      const blueHpEl = document.getElementById('blueHp');
+      const redHpEl = document.getElementById('redHp');
+      const raceTimerEl = document.getElementById('raceTimer');
+      const levelNameEl = document.getElementById('levelName');
+      const gameOverlay = document.getElementById('gameOverlay');
+      const overlayTitle = document.getElementById('overlayTitle');
+      const overlayText = document.getElementById('overlayText');
+
+      const LEVELS = [
+        { name: 'Level 1', obstacleRate: 0.025, obstacleSpeed: 210, obstacleDrift: 18, damage: 0.45, extraHp: 0 },
+        { name: 'Level 2', obstacleRate: 0.036, obstacleSpeed: 250, obstacleDrift: 22, damage: 0.6, extraHp: 8 },
+        { name: 'Level 3', obstacleRate: 0.048, obstacleSpeed: 290, obstacleDrift: 28, damage: 0.75, extraHp: 16 },
+        { name: 'Level 4', obstacleRate: 0.062, obstacleSpeed: 330, obstacleDrift: 34, damage: 0.9, extraHp: 22 },
+        { name: 'Level 5', obstacleRate: 0.082, obstacleSpeed: 380, obstacleDrift: 42, damage: 1.1, extraHp: 30 },
+      ];
+
+      const track = {
+        left: 80,
+        right: 820,
+        top: 110,
+        bottom: 450,
+        width: 740,
+      };
+
+      const controls = {
+        blueUp: false,
+        blueDown: false,
+        blueLeft: false,
+        blueRight: false,
+        redUp: false,
+        redDown: false,
+        redLeft: false,
+        redRight: false,
+      };
+
+      let arenaTime = 0;
+      let lastTime = 0;
+      let gameState = 'playing';
+      let currentLevelIndex = 0;
+      let obstacles = [];
+      let particles = [];
+      let blue;
+      let red;
+
+      function getLevelConfig() {
+        return LEVELS[currentLevelIndex] || LEVELS[LEVELS.length - 1];
+      }
+
+      function clamp(value, min, max) {
+        return Math.min(Math.max(value, min), max);
+      }
+
+      function resetRace() {
+        const level = getLevelConfig();
+        gameState = 'playing';
+        arenaTime = 0;
+        obstacles = [];
+        particles = [];
+
+        blue = {
+          x: 90,
+          y: 190,
+          w: 28,
+          h: 18,
+          color: '#7dd3fc',
+          progress: 0,
+          speed: 0,
+          cooldown: 0,
+          hp: 100 + level.extraHp,
+          maxHp: 100 + level.extraHp,
+        };
+
+        red = {
+          x: 90,
+          y: 350,
+          w: 28,
+          h: 18,
+          color: '#f87171',
+          progress: 0,
+          speed: 0,
+          cooldown: 0,
+          hp: 100 + level.extraHp,
+          maxHp: 100 + level.extraHp,
+        };
+
+        gameOverlay.classList.remove('show');
+        updateHud();
+      }
+
+      function setLevelReady(title, text) {
+        gameState = 'ready';
+        overlayTitle.textContent = title;
+        overlayText.textContent = text;
+        gameOverlay.classList.add('show');
+      }
+
+      function advanceLevel() {
+        if (currentLevelIndex < LEVELS.length - 1) {
+          currentLevelIndex += 1;
+          resetRace();
+          setLevelReady(`${LEVELS[currentLevelIndex].name}!`, 'Press R to start the next challenge.');
+          return;
+        }
+
+        currentLevelIndex = 0;
+        setLevelReady('Final Boss Cleared!', 'You beat every level. Press R to play again from Level 1.');
+        gameState = 'finished';
+      }
+
+      function setResult(title, text) {
+        overlayTitle.textContent = title;
+        overlayText.textContent = text;
+        gameOverlay.classList.add('show');
+      }
+
+      function spawnObstacle() {
+        const level = getLevelConfig();
+        const laneY = [170, 280, 390][Math.floor(Math.random() * 3)];
+        const color = Math.random() > 0.5 ? '#f59e0b' : '#ef4444';
+        obstacles.push({
+          x: track.right + 30,
+          y: laneY,
+          w: 46,
+          h: 46,
+          color,
+          drift: (Math.random() - 0.5) * level.obstacleDrift,
+          speed: level.obstacleSpeed + Math.random() * 70,
+        });
+      }
+
+      function spawnParticles(x, y, color) {
+        for (let i = 0; i < 12; i++) {
+          particles.push({
+            x,
+            y,
+            vx: (Math.random() - 0.5) * 180,
+            vy: (Math.random() - 0.5) * 180,
+            r: 2 + Math.random() * 3,
+            color,
+            life: 0.4 + Math.random() * 0.5,
+          });
+        }
+      }
+
+      function updateHud() {
+        const level = getLevelConfig();
+        blueProgressEl.style.width = `${Math.min(100, blue.progress)}%`;
+        redProgressEl.style.width = `${Math.min(100, red.progress)}%`;
+        blueHpEl.textContent = Math.max(0, Math.ceil(blue.hp));
+        redHpEl.textContent = Math.max(0, Math.ceil(red.hp));
+        blueHealthFillEl.style.width = `${(blue.hp / blue.maxHp) * 100}%`;
+        redHealthFillEl.style.width = `${(red.hp / red.maxHp) * 100}%`;
+        levelNameEl.textContent = level.name;
+
+        const minutes = Math.floor(arenaTime / 60);
+        const seconds = Math.floor(arenaTime % 60);
+        raceTimerEl.textContent = `${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
+      }
+
+      function updatePlayer(racer, upKey, downKey, leftKey, rightKey, dt) {
+        let moveY = 0;
+        if (upKey) moveY -= 1;
+        if (downKey) moveY += 1;
+
+        let moveX = 0;
+        if (leftKey) moveX -= 1;
+        if (rightKey) moveX += 1;
+
+        racer.y += moveY * 210 * dt;
+        racer.x += moveX * 130 * dt;
+        racer.y = clamp(racer.y, track.top, track.bottom);
+        racer.x = clamp(racer.x, track.left, track.right);
+
+        racer.speed = 170 + (moveX > 0 ? 20 : 0) - (moveX < 0 ? 20 : 0);
+        racer.x += racer.speed * dt;
+        racer.progress = ((racer.x - track.left) / (track.right - track.left)) * 100;
+
+        if (racer.progress >= 100) {
+          racer.progress = 100;
+          if (gameState === 'playing') {
+            gameState = 'finished';
+            if (racer === blue) {
+              if (currentLevelIndex < LEVELS.length - 1) {
+                advanceLevel();
+              } else {
+                setResult('Blue Wins Final Round!', 'Press R to start over.');
+              }
+            } else {
+              if (currentLevelIndex < LEVELS.length - 1) {
+                advanceLevel();
+              } else {
+                setResult('Red Wins Final Round!', 'Press R to start over.');
+              }
+            }
+          }
+        }
+      }
+
+      function doesCollide(a, b) {
+        return a.x < b.x + b.w &&
+          a.x + a.w > b.x &&
+          a.y < b.y + b.h &&
+          a.y + a.h > b.y;
+      }
+
+      function updateObstacles(dt) {
+        const level = getLevelConfig();
+
+        for (let i = obstacles.length - 1; i >= 0; i--) {
+          const obstacle = obstacles[i];
+          obstacle.x -= (obstacle.speed + 20) * dt;
+          obstacle.y += obstacle.drift * dt;
+
+          if (obstacle.x < -80) {
+            obstacles.splice(i, 1);
+            continue;
+          }
+
+          const hitBlue = doesCollide(obstacle, blue);
+          const hitRed = doesCollide(obstacle, red);
+
+          if (hitBlue) {
+            blue.hp = Math.max(0, blue.hp - level.damage * 18);
+            blue.x = clamp(blue.x - 28, track.left, track.right);
+            blue.progress = Math.max(0, blue.progress - 8);
+            spawnParticles(obstacle.x, obstacle.y, '#7dd3fc');
+            obstacles.splice(i, 1);
+            if (blue.hp <= 0 && gameState === 'playing') {
+              gameState = 'finished';
+              setResult('Red Wins!', 'Blue ran out of health. Press R to race again.');
+            }
+            continue;
+          }
+
+          if (hitRed) {
+            red.hp = Math.max(0, red.hp - level.damage * 18);
+            red.x = clamp(red.x - 28, track.left, track.right);
+            red.progress = Math.max(0, red.progress - 8);
+            spawnParticles(obstacle.x, obstacle.y, '#f87171');
+            obstacles.splice(i, 1);
+            if (red.hp <= 0 && gameState === 'playing') {
+              gameState = 'finished';
+              setResult('Blue Wins!', 'Red ran out of health. Press R to race again.');
+            }
+          }
+        }
+      }
+
+      function updateParticles(dt) {
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i];
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.life -= dt;
+          if (p.life <= 0) {
+            particles.splice(i, 1);
+          }
+        }
+      }
+
+      function drawTrack() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = '#1f2937';
+        ctx.fillRect(track.left - 30, 70, track.width + 60, 420);
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+        ctx.lineWidth = 2;
+        for (let y = 120; y < 500; y += 70) {
+          ctx.beginPath();
+          ctx.moveTo(track.left, y);
+          ctx.lineTo(track.right, y);
+          ctx.stroke();
+        }
+
+        for (let x = track.left; x <= track.right; x += 90) {
+          ctx.fillStyle = 'rgba(255,255,255,0.12)';
+          ctx.fillRect(x, 90, 18, 380);
+        }
+
+        ctx.fillStyle = '#facc15';
+        ctx.fillRect(track.right + 10, 80, 14, 390);
+      }
+
+      function drawRacer(racer) {
+        ctx.save();
+        ctx.translate(racer.x, racer.y);
+
+        ctx.fillStyle = racer.color;
+        ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+        ctx.lineWidth = 2;
+        ctx.fillRect(-racer.w / 2, -racer.h / 2, racer.w, racer.h);
+        ctx.strokeRect(-racer.w / 2, -racer.h / 2, racer.w, racer.h);
+
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillRect(-racer.w / 2 + 4, -racer.h / 2 + 4, 7, 7);
+        ctx.fillRect(racer.w / 2 - 11, -racer.h / 2 + 4, 7, 7);
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(-racer.w / 2 + 4, racer.h / 2 - 9, 7, 7);
+        ctx.fillRect(racer.w / 2 - 11, racer.h / 2 - 9, 7, 7);
+
+        ctx.restore();
+      }
+
+      function drawObstacles() {
+        obstacles.forEach((obstacle) => {
+          ctx.fillStyle = obstacle.color;
+          ctx.fillRect(obstacle.x, obstacle.y, obstacle.w, obstacle.h);
+          ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+          ctx.strokeRect(obstacle.x, obstacle.y, obstacle.w, obstacle.h);
+        });
+      }
+
+      function drawParticles() {
+        particles.forEach((p) => {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          ctx.fillStyle = p.color;
+          ctx.globalAlpha = Math.max(0, p.life);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        });
+      }
+
+      function render() {
+        drawTrack();
+        drawObstacles();
+        drawParticles();
+        drawRacer(blue);
+        drawRacer(red);
+      }
+
+      function update(dt) {
+        if (gameState !== 'playing') {
+          return;
+        }
+
+        const level = getLevelConfig();
+
+        arenaTime += dt;
+        updatePlayer(blue, controls.blueUp, controls.blueDown, controls.blueLeft, controls.blueRight, dt);
+        updatePlayer(red, controls.redUp, controls.redDown, controls.redLeft, controls.redRight, dt);
+        updateObstacles(dt);
+        updateParticles(dt);
+
+        if (Math.random() < level.obstacleRate + (arenaTime * 0.003)) {
+          spawnObstacle();
+        }
+
+        if (blue.hp <= 0 && gameState === 'playing') {
+          gameState = 'finished';
+          setResult('Red Wins!', 'Blue ran out of health. Press R to race again.');
+        }
+
+        if (red.hp <= 0 && gameState === 'playing') {
+          gameState = 'finished';
+          setResult('Blue Wins!', 'Red ran out of health. Press R to race again.');
+        }
+
+        updateHud();
+      }
+
+      function gameLoop(timestamp) {
+        const dt = Math.min((timestamp - lastTime) / 1000 || 0.016, 0.033);
+        lastTime = timestamp;
+        update(dt);
+        render();
+        requestAnimationFrame(gameLoop);
+      }
+
+      document.addEventListener('keydown', (event) => {
+        const key = event.key.toLowerCase();
+        if (key === 'w') controls.blueUp = true;
+        if (key === 's') controls.blueDown = true;
+        if (key === 'a') controls.blueLeft = true;
+        if (key === 'd') controls.blueRight = true;
+
+        if (event.key === 'ArrowUp') controls.redUp = true;
+        if (event.key === 'ArrowDown') controls.redDown = true;
+        if (event.key === 'ArrowLeft') controls.redLeft = true;
+        if (event.key === 'ArrowRight') controls.redRight = true;
+
+        if (event.key === 'r') {
+          if (gameState === 'ready') {
+            resetRace();
+            return;
+          }
+
+          if (gameState !== 'playing') {
+            currentLevelIndex = 0;
+            resetRace();
+          }
+        }
+      });
+
+      document.addEventListener('keyup', (event) => {
+        const key = event.key.toLowerCase();
+        if (key === 'w') controls.blueUp = false;
+        if (key === 's') controls.blueDown = false;
+        if (key === 'a') controls.blueLeft = false;
+        if (key === 'd') controls.blueRight = false;
+
+        if (event.key === 'ArrowUp') controls.redUp = false;
+        if (event.key === 'ArrowDown') controls.redDown = false;
+        if (event.key === 'ArrowLeft') controls.redLeft = false;
+        if (event.key === 'ArrowRight') controls.redRight = false;
+      });
+
+      resetRace();
+      requestAnimationFrame(gameLoop);
+    </script>
+  </body>
+</html>

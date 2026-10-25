@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Doge Asteroids</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        padding: 20px;
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(circle at 12% 15%, rgba(34, 211, 238, 0.16), transparent 25rem),
+          radial-gradient(circle at 85% 85%, rgba(236, 72, 153, 0.17), transparent 28rem),
+          #080d1c;
+        color: #e2e8f0;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+
+      .game {
+        width: min(100%, 980px);
+        padding: 16px;
+        border: 1px solid rgba(103, 232, 249, 0.24);
+        border-radius: 22px;
+        background: linear-gradient(145deg, rgba(17, 31, 61, 0.97), rgba(10, 15, 32, 0.98));
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.5), 0 0 38px rgba(34, 211, 238, 0.08);
+      }
+
+      header,
+      .controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+      }
+
+      header {
+        padding: 4px 4px 14px;
+      }
+
+      h1 {
+        margin: 0;
+        color: #ecfeff;
+        font-size: clamp(20px, 4vw, 30px);
+        letter-spacing: 0.04em;
+      }
+
+      .menu-link {
+        display: inline-block;
+        margin-top: 8px;
+        padding: 7px 10px;
+        border: 1px solid rgba(103, 232, 249, 0.3);
+        border-radius: 8px;
+        color: #a5f3fc;
+        font-size: 12px;
+        font-weight: 700;
+        text-decoration: none;
+      }
+
+      .menu-link:hover {
+        background: rgba(148, 163, 184, 0.15);
+        color: #fff;
+      }
+
+      .menu-link:focus-visible {
+        outline: 3px solid #fde68a;
+        outline-offset: 3px;
+      }
+
+      .subtitle {
+        margin-top: 4px;
+        color: #94a3b8;
+        font-size: 13px;
+      }
+
+      .lives {
+        flex: none;
+        padding: 9px 13px;
+        border: 1px solid rgba(251, 191, 36, 0.4);
+        border-radius: 999px;
+        background: rgba(120, 53, 15, 0.25);
+        color: #fde68a;
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      canvas {
+        display: block;
+        width: 100%;
+        height: auto;
+        border: 2px solid rgba(103, 232, 249, 0.5);
+        border-radius: 15px;
+        background: #080d1c;
+        box-shadow: 0 0 24px rgba(34, 211, 238, 0.1);
+      }
+
+      .canvas-wrap {
+        position: relative;
+      }
+
+      .mode-menu {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        padding: 20px;
+        border-radius: 15px;
+        background: linear-gradient(135deg, rgba(8, 13, 28, 0.82), rgba(30, 27, 75, 0.78));
+        backdrop-filter: blur(5px);
+        text-align: center;
+      }
+
+      .mode-menu[hidden] {
+        display: none;
+      }
+
+      .mode-menu h2 {
+        margin: 0;
+        color: #ecfeff;
+        font-size: clamp(24px, 5vw, 38px);
+        text-shadow: 0 0 28px rgba(34, 211, 238, 0.42);
+      }
+
+      .mode-menu p {
+        margin: 0;
+        color: #cbd5e1;
+        font-size: 15px;
+      }
+
+      .mode-buttons {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .mode-buttons button {
+        min-width: 160px;
+        padding: 13px 18px;
+        border: 1px solid rgba(103, 232, 249, 0.65);
+        border-radius: 12px;
+        background: linear-gradient(135deg, #0891b2, #4f46e5);
+        box-shadow: 0 5px 0 #312e81, 0 12px 24px rgba(8, 145, 178, 0.2);
+        color: #fff;
+        font: 700 16px Arial, Helvetica, sans-serif;
+        cursor: pointer;
+        transition: transform 120ms ease, filter 120ms ease;
+      }
+
+      .mode-buttons button:hover {
+        filter: brightness(1.18);
+        transform: translateY(-3px);
+      }
+
+      .mode-buttons button:focus-visible {
+        outline: 3px solid #fde68a;
+        outline-offset: 3px;
+      }
+
+      .controls {
+        justify-content: center;
+        flex-wrap: wrap;
+        padding: 13px 4px 2px;
+        color: #cbd5e1;
+        font-size: 13px;
+        text-align: center;
+      }
+
+      .controls span {
+        padding: 6px 10px;
+        border: 1px solid rgba(103, 232, 249, 0.14);
+        border-radius: 8px;
+        background: rgba(51, 65, 85, 0.38);
+      }
+
+      kbd {
+        color: #f8fafc;
+        font-weight: 700;
+      }
+
+      @media (max-width: 520px) {
+        body {
+          padding: 8px;
+        }
+
+        .game {
+          padding: 9px;
+          border-radius: 14px;
+        }
+
+        header {
+          align-items: flex-start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="game">
+      <header>
+        <div>
+          <h1>Doge Asteroids</h1>
+          <div class="subtitle" id="subtitle">Choose solo or team survival</div>
+          <a class="menu-link" href="index.html">← Back to Menu</a>
+        </div>
+        <div class="lives" id="lives">Hits: 0 / 3</div>
+      </header>
+      <div class="canvas-wrap">
+        <canvas id="game" width="960" height="600" aria-label="Doge asteroid dodging game"></canvas>
+        <section class="mode-menu" id="modeMenu" aria-label="Choose player mode">
+          <h2 id="menuTitle">Choose Your Game</h2>
+          <p id="menuMessage">Dodge asteroids. Your team can take three hits.</p>
+          <div class="mode-buttons">
+            <button type="button" data-player-count="1">1 Player</button>
+            <button type="button" data-player-count="2">2 Players</button>
+          </div>
+        </section>
+      </div>
+      <div class="controls" id="controls">
+        <span>Choose a player mode to begin</span>
+      </div>
+    </main>
+
+    <script>
+      const canvas = document.getElementById('game');
+      const ctx = canvas.getContext('2d');
+      const livesDisplay = document.getElementById('lives');
+      const modeMenu = document.getElementById('modeMenu');
+      const menuTitle = document.getElementById('menuTitle');
+      const menuMessage = document.getElementById('menuMessage');
+      const controlsDisplay = document.getElementById('controls');
+      const subtitle = document.getElementById('subtitle');
+      const keys = new Set();
+      const maxHits = 3;
+      const stars = Array.from({ length: 90 }, () => ({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        size: Math.random() * 2 + 0.5,
+        twinkle: Math.random() * Math.PI * 2,
+      }));
+
+      const players = [
+        { x: 300, y: 500, radius: 25, speed: 4.5, color: '#60a5fa', hitTimer: 0, label: 'P1' },
+        { x: 660, y: 500, radius: 25, speed: 4.5, color: '#f472b6', hitTimer: 0, label: 'P2' },
+      ];
+
+      const state = {
+        mode: 'ready',
+        playerCount: 0,
+        hits: 0,
+        score: 0,
+        spawnTimer: 0,
+        spawnDelay: 850,
+        asteroids: [],
+        lastTime: 0,
+        elapsed: 0,
+      };
+
+      function activePlayers() {
+        return players.slice(0, state.playerCount);
+      }
+
+      function showModeMenu(isGameOver = false) {
+        modeMenu.hidden = false;
+        menuTitle.textContent = isGameOver ? 'Choose a Mode to Play Again' : 'Choose Your Game';
+        menuMessage.textContent = isGameOver
+          ? `You took 3 hits! Survival score: ${state.score}`
+          : 'Dodge asteroids. Your team can take three hits.';
+      }
+
+      function startGame(playerCount) {
+        state.playerCount = playerCount;
+        state.mode = 'playing';
+        state.hits = 0;
+        state.score = 0;
+        state.spawnTimer = 0;
+        state.spawnDelay = 850;
+        state.asteroids = [];
+        state.elapsed = 0;
+        players[0].x = playerCount === 1 ? canvas.width / 2 : canvas.width * 0.32;
+        players[1].x = canvas.width * 0.68;
+        players.forEach((player) => {
+          player.y = canvas.height - 95;
+          player.hitTimer = 0;
+        });
+        modeMenu.hidden = true;
+        subtitle.textContent = playerCount === 1 ? 'Solo space survival' : 'Two-player space survival';
+        controlsDisplay.innerHTML = playerCount === 1
+          ? '<span>Move with <kbd>W A S D</kbd></span><span>Dodge as long as you can!</span>'
+          : '<span>Player 1: <kbd>W A S D</kbd></span><span>Player 2: <kbd>Arrow keys</kbd></span>';
+        updateLives();
+      }
+
+      function updateLives() {
+        livesDisplay.textContent = `Hits: ${state.hits} / ${maxHits}`;
+      }
+
+      function spawnAsteroid() {
+        const radius = 18 + Math.random() * 27;
+        const x = radius + Math.random() * (canvas.width - radius * 2);
+        const speed = 2.2 + Math.random() * 2.2 + Math.min(state.score / 180, 2);
+        const sides = 7 + Math.floor(Math.random() * 4);
+        const vertices = Array.from({ length: sides }, (_, index) => {
+          const angle = (index / sides) * Math.PI * 2;
+          const variance = 0.78 + Math.random() * 0.35;
+          return {
+            x: Math.cos(angle) * radius * variance,
+            y: Math.sin(angle) * radius * variance,
+          };
+        });
+
+        state.asteroids.push({
+          x,
+          y: -radius,
+          radius,
+          speed,
+          rotation: Math.random() * Math.PI * 2,
+          spin: (Math.random() - 0.5) * 0.04,
+          vertices,
+        });
+      }
+
+      function update(delta) {
+        if (state.mode !== 'playing') {
+          return;
+        }
+
+        const frameScale = Math.min(delta / 16.67, 2);
+        state.elapsed += delta;
+        state.score = Math.floor(state.elapsed / 100);
+        state.spawnDelay = Math.max(300, 850 - Math.floor(state.score / 80) * 45);
+        state.spawnTimer += delta;
+
+        if (state.spawnTimer >= state.spawnDelay) {
+          spawnAsteroid();
+          state.spawnTimer = 0;
+          if (Math.random() < 0.22 && state.score > 80) {
+            spawnAsteroid();
+          }
+        }
+
+        for (const player of activePlayers()) {
+          const isPlayerOne = player.label === 'P1';
+          const up = isPlayerOne ? 'KeyW' : 'ArrowUp';
+          const down = isPlayerOne ? 'KeyS' : 'ArrowDown';
+          const left = isPlayerOne ? 'KeyA' : 'ArrowLeft';
+          const right = isPlayerOne ? 'KeyD' : 'ArrowRight';
+
+          if (keys.has(up)) player.y -= player.speed * frameScale;
+          if (keys.has(down)) player.y += player.speed * frameScale;
+          if (keys.has(left)) player.x -= player.speed * frameScale;
+          if (keys.has(right)) player.x += player.speed * frameScale;
+
+          player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
+          player.y = Math.max(70, Math.min(canvas.height - player.radius - 10, player.y));
+          player.hitTimer = Math.max(0, player.hitTimer - delta);
+        }
+
+        for (const asteroid of state.asteroids) {
+          asteroid.y += asteroid.speed * frameScale;
+          asteroid.rotation += asteroid.spin * frameScale;
+
+          for (const player of activePlayers()) {
+            if (player.hitTimer > 0) continue;
+
+            const dx = player.x - asteroid.x;
+            const dy = player.y - asteroid.y;
+            if (Math.hypot(dx, dy) < player.radius + asteroid.radius * 0.76) {
+              state.hits += 1;
+              player.hitTimer = 1100;
+              asteroid.y = canvas.height + asteroid.radius;
+              updateLives();
+              if (state.hits >= maxHits) {
+                state.mode = 'over';
+                showModeMenu(true);
+              }
+              break;
+            }
+          }
+        }
+
+        state.asteroids = state.asteroids.filter((asteroid) => asteroid.y - asteroid.radius < canvas.height);
+      }
+
+      function drawSpace() {
+        const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        gradient.addColorStop(0, '#0b1530');
+        gradient.addColorStop(1, '#111827');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        for (const star of stars) {
+          const alpha = 0.35 + (Math.sin(state.elapsed * 0.004 + star.twinkle) + 1) * 0.28;
+          ctx.fillStyle = `rgba(219, 234, 254, ${alpha})`;
+          ctx.beginPath();
+          ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.strokeStyle = 'rgba(96, 165, 250, 0.07)';
+        ctx.lineWidth = 1;
+        for (let y = 100; y < canvas.height; y += 100) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(canvas.width, y);
+          ctx.stroke();
+        }
+      }
+
+      function drawAsteroid(asteroid) {
+        ctx.save();
+        ctx.translate(asteroid.x, asteroid.y);
+        ctx.rotate(asteroid.rotation);
+        ctx.beginPath();
+        asteroid.vertices.forEach((point, index) => {
+          if (index === 0) ctx.moveTo(point.x, point.y);
+          else ctx.lineTo(point.x, point.y);
+        });
+        ctx.closePath();
+
+        const rock = ctx.createLinearGradient(-asteroid.radius, -asteroid.radius, asteroid.radius, asteroid.radius);
+        rock.addColorStop(0, '#cbd5e1');
+        rock.addColorStop(0.5, '#64748b');
+        rock.addColorStop(1, '#334155');
+        ctx.fillStyle = rock;
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.lineWidth = 2;
+        ctx.shadowColor = 'rgba(251, 146, 60, 0.35)';
+        ctx.shadowBlur = 12;
+        ctx.fill();
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.3)';
+        ctx.beginPath();
+        ctx.arc(-asteroid.radius * 0.25, -asteroid.radius * 0.12, asteroid.radius * 0.17, 0, Math.PI * 2);
+        ctx.arc(asteroid.radius * 0.3, asteroid.radius * 0.25, asteroid.radius * 0.12, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawDoge(player) {
+        if (player.hitTimer > 0 && Math.floor(player.hitTimer / 100) % 2 === 0) return;
+
+        ctx.save();
+        ctx.translate(player.x, player.y);
+        ctx.shadowColor = player.color;
+        ctx.shadowBlur = 18;
+
+        ctx.fillStyle = '#d99a55';
+        ctx.beginPath();
+        ctx.moveTo(-20, -12);
+        ctx.lineTo(-23, -33);
+        ctx.lineTo(-7, -23);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(20, -12);
+        ctx.lineTo(23, -33);
+        ctx.lineTo(7, -23);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = '#f3c98b';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 24, 22, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        ctx.fillStyle = '#7c3f20';
+        ctx.beginPath();
+        ctx.arc(-8, -3, 2.6, 0, Math.PI * 2);
+        ctx.arc(8, -3, 2.6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fff1d6';
+        ctx.beginPath();
+        ctx.ellipse(0, 7, 12, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#38251c';
+        ctx.beginPath();
+        ctx.arc(0, 5, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#7c3f20';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(0, 8);
+        ctx.lineTo(0, 12);
+        ctx.moveTo(0, 12);
+        ctx.quadraticCurveTo(-5, 15, -8, 11);
+        ctx.moveTo(0, 12);
+        ctx.quadraticCurveTo(5, 15, 8, 11);
+        ctx.stroke();
+
+        ctx.fillStyle = player.color;
+        ctx.font = 'bold 12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(player.label, 0, 39);
+        ctx.restore();
+      }
+
+      function drawOverlay(title, subtitle) {
+        ctx.fillStyle = 'rgba(2, 6, 23, 0.72)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#f8fafc';
+        ctx.font = '800 48px Arial';
+        ctx.fillText(title, canvas.width / 2, canvas.height / 2 - 18);
+        ctx.fillStyle = '#cbd5e1';
+        ctx.font = '20px Arial';
+        ctx.fillText(subtitle, canvas.width / 2, canvas.height / 2 + 24);
+        ctx.textAlign = 'left';
+      }
+
+      function render() {
+        drawSpace();
+        for (const asteroid of state.asteroids) drawAsteroid(asteroid);
+        for (const player of activePlayers()) drawDoge(player);
+
+        if (state.mode === 'ready') {
+          drawOverlay('DODGE THE ASTEROIDS', 'Choose 1 Player or 2 Players to begin');
+        } else if (state.mode === 'over') {
+          drawOverlay('GAME OVER', 'Choose a player mode to play again');
+        } else {
+          ctx.fillStyle = 'rgba(15, 23, 42, 0.65)';
+          ctx.fillRect(canvas.width - 155, 18, 135, 42);
+          ctx.fillStyle = '#f8fafc';
+          ctx.font = 'bold 20px Arial';
+          ctx.textAlign = 'right';
+          ctx.fillText(`Score: ${state.score}`, canvas.width - 32, 46);
+          ctx.textAlign = 'left';
+        }
+      }
+
+      document.addEventListener('keydown', (event) => {
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(event.code)) {
+          event.preventDefault();
+        }
+
+        if (event.code === 'Enter' && !event.repeat && state.mode === 'over' && state.playerCount > 0) {
+          startGame(state.playerCount);
+          return;
+        }
+        keys.add(event.code);
+      });
+
+      modeMenu.addEventListener('click', (event) => {
+        const button = event.target.closest('button[data-player-count]');
+        if (!button) return;
+        startGame(Number(button.dataset.playerCount));
+      });
+
+      document.addEventListener('keyup', (event) => {
+        keys.delete(event.code);
+      });
+
+      window.addEventListener('blur', () => keys.clear());
+
+      function loop(timestamp) {
+        const delta = state.lastTime ? Math.min(timestamp - state.lastTime, 40) : 16.67;
+        state.lastTime = timestamp;
+        update(delta);
+        render();
+        requestAnimationFrame(loop);
+      }
+
+      updateLives();
+      showModeMenu();
+      requestAnimationFrame(loop);
+    </script>
+  </body>
+</html>

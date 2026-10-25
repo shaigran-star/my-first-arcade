@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Arena Duel</title>
+    <style>
+      :root {
+        --bg: #ff0000;
+        --panel: rgba(255, 123, 0, 0.8);
+        --primary: #ff000d;
+        --accent: #facc15;
+        --danger: #f87171;
+        --good: #4ade80;
+        --text: #e5eefb;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html, body {
+        margin: 0;
+        height: 100%;
+        background: radial-gradient(circle at top, #1e293b, var(--bg) 52%);
+        color: var(--text);
+        font-family: Arial, Helvetica, sans-serif;
+      }
+
+      body {
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+      }
+
+      .game-shell {
+        position: relative;
+        width: min(92vw, 980px);
+        display: grid;
+        gap: 12px;
+      }
+
+      .menu-row {
+        display: flex;
+        justify-content: flex-start;
+      }
+
+      .menu-button {
+        display: inline-block;
+        padding: 10px 16px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 10px;
+        background: var(--panel);
+        color: var(--text);
+        font-weight: 700;
+        text-decoration: none;
+        box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
+        transition: background-color 0.15s ease, transform 0.15s ease;
+      }
+
+      .menu-button:hover {
+        background: rgba(255, 123, 0, 0.95);
+        transform: translateY(-1px);
+      }
+
+      .menu-button:focus-visible {
+        outline: 3px solid var(--accent);
+        outline-offset: 3px;
+      }
+
+      .hud {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        background: var(--panel);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 14px;
+        padding: 12px 18px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.28);
+        font-size: 14px;
+      }
+
+      .stats {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .health-bar {
+        width: 220px;
+        height: 14px;
+        background: rgba(255,255,255,0.08);
+        border-radius: 999px;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.12);
+      }
+
+      .health-fill {
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, var(--good), #86efac);
+        transition: width 0.15s ease;
+      }
+
+      .arena-wrap {
+        position: relative;
+      }
+
+      canvas {
+        display: block;
+        width: 100%;
+        height: auto;
+        border-radius: 18px;
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.95), rgba(3, 7, 18, 0.96));
+        border: 1px solid rgba(125, 211, 252, 0.18);
+        box-shadow: 0 22px 40px rgba(0, 0, 0, 0.38);
+      }
+
+      #touchPad {
+        position: absolute;
+        right: 18px;
+        bottom: 18px;
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        background: rgba(148, 163, 184, 0.12);
+        border: 2px solid rgba(255,255,255,0.12);
+        touch-action: none;
+        user-select: none;
+        box-shadow: inset 0 0 20px rgba(255,255,255,0.08);
+      }
+
+      #touchPad::before {
+        content: "TURN";
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        font-size: 12px;
+        letter-spacing: 0.18em;
+        color: rgba(255,255,255,0.5);
+      }
+
+      #touchKnob {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 48px;
+        height: 48px;
+        margin-left: -24px;
+        margin-top: -24px;
+        border-radius: 50%;
+        background: rgba(125, 211, 252, 0.26);
+        border: 2px solid rgba(125, 211, 252, 0.8);
+        box-shadow: 0 0 18px rgba(125, 211, 252, 0.28);
+      }
+
+      .overlay {
+        position: absolute;
+        inset: 0;
+        display: none;
+        place-items: center;
+        text-align: center;
+        background: rgba(2, 6, 23, 0.58);
+        border-radius: 18px;
+      }
+
+      .overlay.show {
+        display: grid;
+      }
+
+      .overlay-box {
+        background: rgba(15, 23, 42, 0.9);
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 20px;
+        padding: 26px 32px;
+        box-shadow: 0 16px 30px rgba(0,0,0,0.35);
+      }
+
+      .overlay-box h2 {
+        margin: 0 0 10px;
+        font-size: clamp(26px, 4vw, 42px);
+      }
+
+      .overlay-box p {
+        margin: 0;
+        color: rgba(229, 238, 251, 0.85);
+      }
+
+      @media (max-width: 600px) {
+        .hud {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+
+        #touchPad {
+          width: 110px;
+          height: 110px;
+          right: 12px;
+          bottom: 12px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+      <div class="game-shell">
+        <div class="menu-row">
+          <a class="menu-button" href="index.html">Back to Menu</a>
+        </div>
+        <div class="hud">
+          <div class="stats">
+            <span>HP: <strong id="playerHp">100</strong></span>
+            <span>Enemy HP: <strong id="enemyHp">100</strong></span>
+            <span>Time: <strong id="gameTimer">00:00</strong></span>
+          </div>
+          <div class="health-bar" aria-label="health bar">
+            <div id="healthFill" class="health-fill"></div>
+          </div>
+        </div>
+
+        <div class="arena-wrap">
+          <canvas id="gameCanvas" width="900" height="560"></canvas>
+
+          <div id="touchPad" aria-label="Touch turn pad">
+            <div id="touchKnob"></div>
+          </div>
+
+          <div id="gameOverlay" class="overlay">
+            <div class="overlay-box">
+              <h2 id="overlayTitle">You Win!</h2>
+              <p id="overlayText">Press R to play again.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const touchPad = document.getElementById('touchPad');
+        const touchKnob = document.getElementById('touchKnob');
+        const playerHpEl = document.getElementById('playerHp');
+        const enemyHpEl = document.getElementById('enemyHp');
+        const gameTimerEl = document.getElementById('gameTimer');
+        const healthFill = document.getElementById('healthFill');
+        const gameOverlay = document.getElementById('gameOverlay');
+        const overlayTitle = document.getElementById('overlayTitle');
+        const overlayText = document.getElementById('overlayText');
+
+        const arena = { w: canvas.width, h: canvas.height };
+        const controls = {
+          up: false,
+          down: false,
+          left: false,
+          right: false,
+          shoot: false,
+          aimX: 1,
+          aimY: 0
+        };
+
+        let gameState = 'playing';
+        let lastTime = 0;
+        let elapsedTime = 0;
+        let player;
+        let enemy;
+        let bullets = [];
+        let particles = [];
+        let touchAim = { active: false, x: 0, y: 0 };
+
+        function resetGame() {
+          player = {
+            x: arena.w * 0.25,
+            y: arena.h * 0.5,
+            r: 18,
+            speed: 220,
+            hp: 100,
+            maxHp: 100,
+            cooldown: 0,
+            fireRate: 0.5,
+            facing: 0,
+            color: '#7dd3fc'
+          };
+
+          enemy = {
+            x: arena.w * 0.75,
+            y: arena.h * 0.5,
+            r: 18,
+            speed: 175,
+            hp: 100,
+            maxHp: 100,
+            cooldown: 0,
+            fireRate: 0.5,
+            facing: Math.PI,
+            color: '#f87171'
+          };
+
+          bullets = [];
+          particles = [];
+          elapsedTime = 0;
+          gameState = 'playing';
+          gameOverlay.classList.remove('show');
+          updateHud();
+        }
+
+        function updateHud() {
+          playerHpEl.textContent = Math.max(0, Math.ceil(player.hp));
+          enemyHpEl.textContent = Math.max(0, Math.ceil(enemy.hp));
+          const minutes = Math.floor(elapsedTime / 60);
+          const seconds = Math.floor(elapsedTime % 60);
+          gameTimerEl.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+          healthFill.style.width = `${(player.hp / player.maxHp) * 100}%`;
+        }
+
+        function setResult(title, text) {
+          overlayTitle.textContent = title;
+          overlayText.textContent = text;
+          gameOverlay.classList.add('show');
+        }
+
+        function clamp(value, min, max) {
+          return Math.min(Math.max(value, min), max);
+        }
+
+        function normalize(x, y) {
+          const dist = Math.hypot(x, y) || 1;
+          return { x: x / dist, y: y / dist };
+        }
+
+        function shootFrom(source, targetX, targetY, color, owner) {
+          const direction = normalize(targetX - source.x, targetY - source.y);
+          const speed = 420;
+          bullets.push({
+            x: source.x + direction.x * (source.r + 10),
+            y: source.y + direction.y * (source.r + 10),
+            vx: direction.x * speed,
+            vy: direction.y * speed,
+            r: 5,
+            color,
+            owner,
+            life: 1.5
+          });
+        }
+
+        function spawnShotBurst(x, y, color) {
+          for (let i = 0; i < 10; i++) {
+            particles.push({
+              x,
+              y,
+              vx: (Math.random() - 0.5) * 180,
+              vy: (Math.random() - 0.5) * 180,
+              r: 2 + Math.random() * 4,
+              color,
+              life: 0.5 + Math.random() * 0.4
+            });
+          }
+        }
+
+        function handlePlayerMovement(dt) {
+          let moveX = 0;
+          let moveY = 0;
+
+          if (controls.left) moveX -= 1;
+          if (controls.right) moveX += 1;
+          if (controls.up) moveY -= 1;
+          if (controls.down) moveY += 1;
+
+          player.isMoving = moveX !== 0 || moveY !== 0;
+
+          if (player.isMoving) {
+            const dir = normalize(moveX, moveY);
+            player.x += dir.x * player.speed * dt;
+            player.y += dir.y * player.speed * dt;
+          }
+
+          player.x = clamp(player.x, player.r, arena.w - player.r);
+          player.y = clamp(player.y, player.r, arena.h - player.r);
+
+          const aim = normalize(controls.aimX, controls.aimY);
+          player.facing = Math.atan2(aim.y, aim.x);
+        }
+
+        function handleEnemyAI(dt) {
+          const dx = player.x - enemy.x;
+          const dy = player.y - enemy.y;
+          const distance = Math.hypot(dx, dy) || 1;
+          const desired = normalize(dx, dy);
+
+          enemy.isMoving = distance > 20;
+
+          if (distance > 180) {
+            enemy.x += desired.x * enemy.speed * dt;
+            enemy.y += desired.y * enemy.speed * dt;
+          } else if (distance < 120) {
+            enemy.x -= desired.x * enemy.speed * 0.7 * dt;
+            enemy.y -= desired.y * enemy.speed * 0.7 * dt;
+          }
+
+          enemy.x += Math.cos(performance.now() / 500) * 22 * dt;
+          enemy.y += Math.sin(performance.now() / 500) * 22 * dt;
+
+          enemy.x = clamp(enemy.x, enemy.r, arena.w - enemy.r);
+          enemy.y = clamp(enemy.y, enemy.r, arena.h - enemy.r);
+
+          enemy.facing = Math.atan2(dy, dx);
+          enemy.cooldown -= dt;
+
+          if (enemy.cooldown <= 0 && distance < 430) {
+            shootFrom(enemy, player.x, player.y, '#fca5a5', 'enemy');
+            enemy.cooldown = enemy.fireRate;
+          }
+        }
+
+        function updateBullets(dt) {
+          for (let i = bullets.length - 1; i >= 0; i--) {
+            const bullet = bullets[i];
+            bullet.x += bullet.vx * dt;
+            bullet.y += bullet.vy * dt;
+            bullet.life -= dt;
+
+            if (bullet.life <= 0) {
+              bullets.splice(i, 1);
+              continue;
+            }
+
+            if (bullet.x < -10 || bullet.x > arena.w + 10 || bullet.y < -10 || bullet.y > arena.h + 10) {
+              bullets.splice(i, 1);
+              continue;
+            }
+
+            const target = bullet.owner === 'player' ? enemy : player;
+            if (Math.hypot(bullet.x - target.x, bullet.y - target.y) <= target.r + bullet.r + 2) {
+              target.hp -= 14;
+              bullets.splice(i, 1);
+              spawnShotBurst(bullet.x, bullet.y, bullet.color);
+
+              if (target.hp <= 0) {
+                if (target === enemy) {
+                  gameState = 'won';
+                  setResult('You Win!', 'You killed the enemy first. Press R to play again.');
+                } else {
+                  gameState = 'lost';
+                  setResult('You Lose!', 'You got killed. Press R to play again.');
+                }
+              }
+            }
+          }
+        }
+
+        function updateParticles(dt) {
+          for (let i = particles.length - 1; i >= 0; i--) {
+            const p = particles[i];
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            p.life -= dt;
+            if (p.life <= 0) {
+              particles.splice(i, 1);
+            }
+          }
+        }
+
+        function updatePlayerShoot(dt) {
+          player.cooldown -= dt;
+          if (controls.shoot && player.cooldown <= 0 && gameState === 'playing') {
+            shootFrom(player, player.x + Math.cos(player.facing) * 80, player.y + Math.sin(player.facing) * 80, '#7dd3fc', 'player');
+            player.cooldown = player.fireRate;
+          }
+        }
+
+        function drawArena() {
+          ctx.clearRect(0, 0, arena.w, arena.h);
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(0, 0, arena.w, arena.h);
+
+          for (let i = 0; i < 18; i++) {
+            const x = ((i * 97) % arena.w);
+            const y = ((i * 59) % arena.h);
+            ctx.fillStyle = 'rgba(148, 163, 184, 0.05)';
+            ctx.fillRect(x, y, 18, 18);
+          }
+        }
+
+        function drawEntity(entity, glowColor) {
+          const time = performance.now() * 0.01;
+          const stride = entity.isMoving ? Math.sin(time * 12 + entity.x * 0.1) : 0;
+          const weaponLift = entity.isMoving ? Math.sin(time * 12 + entity.x * 0.1 + 1.5) * 2 : 0;
+
+          ctx.save();
+          ctx.translate(entity.x, entity.y);
+          ctx.rotate(entity.facing);
+
+          ctx.strokeStyle = '#e2e8f0';
+          ctx.lineWidth = 3;
+
+          const legSwing = entity.isMoving ? stride * 6 : 0;
+          const armSwing = entity.isMoving ? stride * 4 : 0;
+
+          ctx.beginPath();
+          ctx.moveTo(-6, 18);
+          ctx.lineTo(-10 + legSwing, 34);
+          ctx.moveTo(6, 18);
+          ctx.lineTo(10 - legSwing, 34);
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.moveTo(-8, 0);
+          ctx.lineTo(-16 + armSwing, 12);
+          ctx.moveTo(8, 0);
+          ctx.lineTo(16 - armSwing, 12 + weaponLift);
+          ctx.stroke();
+
+          ctx.fillStyle = entity.color;
+          ctx.shadowBlur = 18;
+          ctx.shadowColor = glowColor;
+          ctx.fillRect(-10, -8, 20, 20);
+          ctx.shadowBlur = 0;
+
+          ctx.beginPath();
+          ctx.arc(0, -16, 8, 0, Math.PI * 2);
+          ctx.fillStyle = '#e2e8f0';
+          ctx.fill();
+
+          ctx.beginPath();
+          ctx.moveTo(10, 0);
+          ctx.lineTo(26 + (entity.isMoving ? 2 : 0), 0 + weaponLift);
+          ctx.strokeStyle = '#f8fafc';
+          ctx.lineWidth = 4;
+          ctx.stroke();
+
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(26, -2 + weaponLift, 10, 4);
+
+          ctx.restore();
+        }
+
+        function drawBullets() {
+          bullets.forEach((bullet) => {
+            ctx.beginPath();
+            ctx.arc(bullet.x, bullet.y, bullet.r, 0, Math.PI * 2);
+            ctx.fillStyle = bullet.color;
+            ctx.fill();
+          });
+        }
+
+        function drawParticles() {
+          particles.forEach((p) => {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = Math.max(0, p.life);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+          });
+        }
+
+        function drawAimLine() {
+          const aim = normalize(controls.aimX, controls.aimY);
+          const lineLength = 28;
+          ctx.beginPath();
+          ctx.moveTo(player.x, player.y);
+          ctx.lineTo(player.x + aim.x * lineLength, player.y + aim.y * lineLength);
+          ctx.strokeStyle = 'rgba(125, 211, 252, 0.8)';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+
+        function render() {
+          drawArena();
+          drawAimLine();
+          drawEntity(player, 'rgba(125, 211, 252, 0.9)');
+          drawEntity(enemy, 'rgba(248, 113, 113, 0.9)');
+          drawBullets();
+          drawParticles();
+        }
+
+        function update(dt) {
+          if (gameState !== 'playing') {
+            return;
+          }
+
+          elapsedTime += dt;
+          handlePlayerMovement(dt);
+          handleEnemyAI(dt);
+          updatePlayerShoot(dt);
+          updateBullets(dt);
+          updateParticles(dt);
+          updateHud();
+        }
+
+        function gameLoop(timestamp) {
+          const dt = Math.min((timestamp - lastTime) / 1000 || 0.016, 0.033);
+          lastTime = timestamp;
+          update(dt);
+          render();
+          requestAnimationFrame(gameLoop);
+        }
+
+        function setAimFromPointer(x, y) {
+          const rect = canvas.getBoundingClientRect();
+          const localX = x - rect.left;
+          const localY = y - rect.top;
+          const dx = localX - player.x;
+          const dy = localY - player.y;
+          const aim = normalize(dx, dy);
+          controls.aimX = aim.x;
+          controls.aimY = aim.y;
+        }
+
+        function updateTouchPad(clientX, clientY) {
+          const rect = touchPad.getBoundingClientRect();
+          const cx = rect.left + rect.width / 2;
+          const cy = rect.top + rect.height / 2;
+          const dx = clientX - cx;
+          const dy = clientY - cy;
+          const limit = rect.width * 0.32;
+          const dist = Math.min(Math.hypot(dx, dy), limit);
+          const angle = Math.atan2(dy, dx);
+          const x = Math.cos(angle) * dist;
+          const y = Math.sin(angle) * dist;
+
+          touchKnob.style.transform = `translate(${x}px, ${y}px)`;
+
+          const aim = normalize(x, y);
+          controls.aimX = aim.x;
+          controls.aimY = aim.y;
+          touchAim.x = x;
+          touchAim.y = y;
+        }
+
+        document.addEventListener('keydown', (event) => {
+          const key = event.key.toLowerCase();
+          if (key === 'w') controls.up = true;
+          if (key === 's') controls.down = true;
+          if (key === 'a') controls.left = true;
+          if (key === 'd') controls.right = true;
+          if (key === ' ') {
+            event.preventDefault();
+            controls.shoot = true;
+          }
+          if (key === 'r' && gameState !== 'playing') {
+            resetGame();
+          }
+        });
+
+        document.addEventListener('keyup', (event) => {
+          const key = event.key.toLowerCase();
+          if (key === 'w') controls.up = false;
+          if (key === 's') controls.down = false;
+          if (key === 'a') controls.left = false;
+          if (key === 'd') controls.right = false;
+          if (key === ' ') controls.shoot = false;
+        });
+
+        window.addEventListener('pointermove', (event) => {
+          if (event.pointerType === 'mouse') {
+            setAimFromPointer(event.clientX, event.clientY);
+          }
+        });
+
+        canvas.addEventListener('pointerdown', (event) => {
+          setAimFromPointer(event.clientX, event.clientY);
+          controls.shoot = true;
+        });
+
+        canvas.addEventListener('pointerup', () => {
+          controls.shoot = false;
+        });
+
+        canvas.addEventListener('pointerleave', () => {
+          controls.shoot = false;
+        });
+
+        touchPad.addEventListener('pointerdown', (event) => {
+          touchPad.setPointerCapture(event.pointerId);
+          touchAim.active = true;
+          updateTouchPad(event.clientX, event.clientY);
+        });
+
+        touchPad.addEventListener('pointermove', (event) => {
+          if (touchAim.active) {
+            updateTouchPad(event.clientX, event.clientY);
+          }
+        });
+
+        touchPad.addEventListener('pointerup', (event) => {
+          touchPad.releasePointerCapture(event.pointerId);
+          touchAim.active = false;
+          touchKnob.style.transform = 'translate(0px, 0px)';
+          controls.aimX = 1;
+          controls.aimY = 0;
+        });
+
+        touchPad.addEventListener('pointercancel', () => {
+          touchAim.active = false;
+          touchKnob.style.transform = 'translate(0px, 0px)';
+          controls.aimX = 1;
+          controls.aimY = 0;
+        });
+
+        resetGame();
+        requestAnimationFrame(gameLoop);
+      </script>
+  </body>
+</html>

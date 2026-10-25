@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cube Jump Over Spikes</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --text: #e2e8f0;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background:
+          radial-gradient(circle at 15% 15%, rgba(249, 115, 22, 0.17), transparent 25rem),
+          radial-gradient(circle at 85% 85%, rgba(168, 85, 247, 0.2), transparent 28rem),
+          #100b25;
+        color: var(--text);
+        font-family: Arial, Helvetica, sans-serif;
+      }
+
+      .game-shell {
+        width: min(100%, 980px);
+        padding: 18px;
+        border: 1px solid rgba(196, 181, 253, 0.24);
+        border-radius: 24px;
+        background: linear-gradient(145deg, rgba(49, 35, 86, 0.96), rgba(25, 19, 48, 0.98));
+        box-shadow: 0 28px 80px rgba(0, 0, 0, 0.48), 0 0 40px rgba(168, 85, 247, 0.14);
+      }
+
+      .game-header,
+      .game-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 4px 4px 14px;
+      }
+
+      .game-title {
+        margin: 0;
+        color: #fff7ed;
+        font-size: clamp(18px, 3vw, 24px);
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .game-badge {
+        padding: 7px 11px;
+        border: 1px solid rgba(250, 204, 21, 0.38);
+        border-radius: 999px;
+        background: rgba(250, 204, 21, 0.1);
+        color: #fde68a;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .menu-link {
+        padding: 8px 12px;
+        border: 1px solid rgba(196, 181, 253, 0.32);
+        border-radius: 9px;
+        background: rgba(255, 255, 255, 0.04);
+        color: #ddd6fe;
+        font-size: 13px;
+        font-weight: 700;
+        text-decoration: none;
+        transition: background 120ms ease, color 120ms ease;
+      }
+
+      .menu-link:hover {
+        background: rgba(148, 163, 184, 0.15);
+        color: #fff;
+      }
+
+      .menu-link:focus-visible {
+        outline: 3px solid #fde68a;
+        outline-offset: 3px;
+      }
+
+      canvas {
+        display: block;
+        width: 100%;
+        height: auto;
+        border: 2px solid rgba(251, 146, 60, 0.72);
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(2, 6, 23, 0.3), 0 0 22px rgba(249, 115, 22, 0.12);
+      }
+
+      .game-footer {
+        justify-content: center;
+        padding: 13px 4px 2px;
+        color: #c4b5fd;
+        font-size: 13px;
+        text-align: center;
+      }
+
+      .game-footer strong {
+        display: inline-block;
+        padding: 7px 10px;
+        border: 1px solid rgba(196, 181, 253, 0.24);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.05);
+        color: #fde68a;
+      }
+
+      @media (max-width: 520px) {
+        body {
+          padding: 10px;
+        }
+
+        .game-shell {
+          padding: 10px;
+          border-radius: 16px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="game-shell">
+      <div class="game-header">
+        <h1 class="game-title">Cube Rush</h1>
+        <div style="display: flex; align-items: center; gap: 10px">
+          <span class="game-badge">Endless Run</span>
+          <a class="menu-link" href="index.html">Back to Menu</a>
+        </div>
+      </div>
+      <canvas id="game" width="920" height="520" aria-label="Game: cube jumps over spikes"></canvas>
+      <div class="game-footer"><span><strong>SPACE / ↑ / W</strong> or tap to jump</span></div>
+    </div>
+
+    <script>
+      const canvas = document.getElementById('game');
+      const ctx = canvas.getContext('2d');
+
+      const groundY = canvas.height - 60;
+
+      const player = {
+        x: 120,
+        y: groundY - 42,
+        width: 42,
+        height: 42,
+        velY: 0,
+        gravity: 0.78,
+        jumpPower: 14,
+        grounded: true,
+      };
+
+      const state = {
+        running: true,
+        obstacles: [],
+        score: 0,
+        best: 0,
+        speed: 10,
+        obstacleTimer: 0,
+        obstacleDelay: 950,
+        difficulty: 1,
+        distance: 0,
+      };
+
+      function randomBetween(min, max) {
+        return min + Math.random() * (max - min);
+      }
+
+      function resetGame() {
+        player.y = groundY - player.height;
+        player.velY = 0;
+        player.grounded = true;
+        state.obstacles = [];
+        state.score = 0;
+        state.speed = 10;
+        state.obstacleTimer = 0;
+        state.obstacleDelay = 950;
+        state.difficulty = 1;
+        state.distance = 0;
+        state.running = true;
+      }
+
+      function jump() {
+        if (!state.running) {
+          resetGame();
+          return;
+        }
+
+        if (player.grounded) {
+          player.velY = -player.jumpPower;
+          player.grounded = false;
+        }
+      }
+
+      function spawnSpike(xOffset = 0, customHeight = null, customWidth = null) {
+        const height = customHeight ?? randomBetween(28, 74);
+        const width = customWidth ?? randomBetween(22, 46);
+
+        state.obstacles.push({
+          x: canvas.width + 20 + xOffset,
+          y: groundY - height,
+          width,
+          height,
+          passed: false,
+        });
+      }
+
+      function spawnPattern() {
+        const patternRoll = Math.random();
+
+        if (patternRoll < 0.3) {
+          spawnSpike();
+          return;
+        }
+
+        if (patternRoll < 0.62) {
+          const firstWidth = randomBetween(22, 40);
+          const secondWidth = randomBetween(22, 48);
+          const gap = randomBetween(14, 26);
+
+          spawnSpike(0, randomBetween(30, 62), firstWidth);
+          spawnSpike(gap + firstWidth, randomBetween(26, 58), secondWidth);
+          return;
+        }
+
+        if (patternRoll < 0.84) {
+          const firstWidth = randomBetween(22, 30);
+          const secondWidth = randomBetween(26, 38);
+          const thirdWidth = randomBetween(22, 30);
+          const gap = randomBetween(16, 22);
+
+          spawnSpike(0, randomBetween(26, 42), firstWidth);
+          spawnSpike(firstWidth + gap, randomBetween(38, 64), secondWidth);
+          spawnSpike(firstWidth + secondWidth + gap * 2, randomBetween(26, 42), thirdWidth);
+          return;
+        }
+
+        const widths = [randomBetween(20, 26), randomBetween(26, 34), randomBetween(26, 34), randomBetween(20, 26)];
+        let offset = 0;
+        for (let i = 0; i < widths.length; i += 1) {
+          spawnSpike(offset, randomBetween(i % 2 === 0 ? 26 : 38, i % 2 === 0 ? 44 : 68), widths[i]);
+          offset += widths[i] + randomBetween(14, 22);
+        }
+      }
+
+      function pointInTriangle(px, py, triangle) {
+        let inside = false;
+
+        for (let i = 0, j = triangle.length - 1; i < triangle.length; j = i++) {
+          const xi = triangle[i].x;
+          const yi = triangle[i].y;
+          const xj = triangle[j].x;
+          const yj = triangle[j].y;
+
+          const intersects = (yi > py) !== (yj > py) &&
+            (px < ((xj - xi) * (py - yi)) / (yj - yi) + xi);
+
+          if (intersects) {
+            inside = !inside;
+          }
+        }
+
+        return inside;
+      }
+
+      function intersects(a, b) {
+        const aBox = {
+          left: a.x + 6,
+          right: a.x + a.width - 6,
+          top: a.y + 6,
+          bottom: a.y + a.height - 6,
+        };
+
+        const triangle = [
+          { x: b.x + 6, y: groundY },
+          { x: b.x + b.width / 2, y: b.y + 8 },
+          { x: b.x + b.width - 6, y: groundY },
+        ];
+
+        const corners = [
+          { x: aBox.left, y: aBox.top },
+          { x: aBox.right, y: aBox.top },
+          { x: aBox.left, y: aBox.bottom },
+          { x: aBox.right, y: aBox.bottom },
+        ];
+
+        for (const point of corners) {
+          if (pointInTriangle(point.x, point.y, triangle)) {
+            return true;
+          }
+        }
+
+        return false;
+      }
+
+      function update(delta) {
+        if (!state.running) {
+          return;
+        }
+
+        state.distance = (state.distance + state.speed * delta / 16.67) % 48;
+        state.difficulty = 1;
+        state.obstacleTimer += delta;
+        state.obstacleDelay = 950;
+
+        if (state.obstacleTimer >= state.obstacleDelay) {
+          spawnPattern();
+          state.obstacleTimer = 0;
+        }
+
+        player.velY += player.gravity;
+        player.y += player.velY;
+
+        if (player.y + player.height >= groundY) {
+          player.y = groundY - player.height;
+          player.velY = 0;
+          player.grounded = true;
+        }
+
+        for (const spike of state.obstacles) {
+          spike.x -= state.speed;
+
+          if (!spike.passed && spike.x + spike.width < player.x) {
+            spike.passed = true;
+            state.score += 1;
+            state.best = Math.max(state.best, state.score);
+          }
+
+          if (intersects(player, spike)) {
+            state.running = false;
+            return;
+          }
+        }
+
+        state.obstacles = state.obstacles.filter((spike) => spike.x + spike.width > -10);
+      }
+
+      function drawBackground() {
+        const sky = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        sky.addColorStop(0, '#38bdf8');
+        sky.addColorStop(0.55, '#bae6fd');
+        sky.addColorStop(1, '#e0f2fe');
+        ctx.fillStyle = sky;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const sunGlow = ctx.createRadialGradient(canvas.width - 120, 105, 12, canvas.width - 120, 105, 95);
+        sunGlow.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+        sunGlow.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        ctx.fillStyle = sunGlow;
+        ctx.fillRect(canvas.width - 220, 5, 200, 200);
+
+        ctx.fillStyle = '#fff7cc';
+        ctx.beginPath();
+        ctx.arc(canvas.width - 120, 105, 38, 0, Math.PI * 2);
+        ctx.fill();
+
+        function drawCloud(x, y, scale) {
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.78)';
+          ctx.beginPath();
+          ctx.ellipse(x, y, 34 * scale, 13 * scale, 0, 0, Math.PI * 2);
+          ctx.ellipse(x - 17 * scale, y - 5 * scale, 17 * scale, 14 * scale, 0, 0, Math.PI * 2);
+          ctx.ellipse(x + 4 * scale, y - 10 * scale, 22 * scale, 19 * scale, 0, 0, Math.PI * 2);
+          ctx.ellipse(x + 22 * scale, y - 3 * scale, 17 * scale, 12 * scale, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        drawCloud(150, 135, 1);
+        drawCloud(460, 90, 0.72);
+        drawCloud(690, 175, 0.85);
+
+        ctx.fillStyle = '#93c5fd';
+        ctx.beginPath();
+        ctx.moveTo(0, 335);
+        ctx.lineTo(145, 220);
+        ctx.lineTo(280, 335);
+        ctx.lineTo(460, 205);
+        ctx.lineTo(650, 335);
+        ctx.lineTo(800, 230);
+        ctx.lineTo(920, 320);
+        ctx.lineTo(920, groundY);
+        ctx.lineTo(0, groundY);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = '#60a5fa';
+        ctx.beginPath();
+        ctx.moveTo(0, 380);
+        ctx.lineTo(190, 300);
+        ctx.lineTo(340, 375);
+        ctx.lineTo(555, 280);
+        ctx.lineTo(730, 380);
+        ctx.lineTo(920, 300);
+        ctx.lineTo(920, groundY);
+        ctx.lineTo(0, groundY);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      function drawGround() {
+        const ground = ctx.createLinearGradient(0, groundY, 0, canvas.height);
+        ground.addColorStop(0, '#166534');
+        ground.addColorStop(0.14, '#14532d');
+        ground.addColorStop(1, '#052e16');
+        ctx.fillStyle = ground;
+        ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+
+        ctx.fillStyle = '#4ade80';
+        ctx.fillRect(0, groundY, canvas.width, 5);
+
+        ctx.fillStyle = 'rgba(187, 247, 208, 0.35)';
+        for (let i = -48; i < canvas.width + 48; i += 48) {
+          const x = i - state.distance;
+          ctx.fillRect(x, groundY + 19, 22, 3);
+          ctx.fillRect(x + 26, groundY + 34, 10, 2);
+        }
+      }
+
+      function drawPlayer() {
+        ctx.save();
+        ctx.shadowColor = 'rgba(30, 64, 175, 0.55)';
+        ctx.shadowBlur = 16;
+        const cubeGradient = ctx.createLinearGradient(player.x, player.y, player.x + player.width, player.y + player.height);
+        cubeGradient.addColorStop(0, '#60a5fa');
+        cubeGradient.addColorStop(1, '#1d4ed8');
+        ctx.fillStyle = cubeGradient;
+        ctx.beginPath();
+        ctx.roundRect(player.x, player.y, player.width, player.height, 8);
+        ctx.fill();
+        ctx.restore();
+
+        ctx.fillStyle = '#fff7ed';
+        ctx.beginPath();
+        ctx.arc(player.x + 13, player.y + 15, 4, 0, Math.PI * 2);
+        ctx.arc(player.x + 29, player.y + 15, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        ctx.roundRect(player.x + 10, player.y + 25, 22, 5, 2);
+        ctx.fill();
+      }
+
+      function drawSpike(spike) {
+        const spikeWidth = spike.width;
+
+        ctx.save();
+        ctx.shadowColor = 'rgba(127, 29, 29, 0.32)';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.moveTo(spike.x, groundY);
+        ctx.lineTo(spike.x + spikeWidth / 2, spike.y);
+        ctx.lineTo(spike.x + spikeWidth, groundY);
+        ctx.closePath();
+        const spikeGradient = ctx.createLinearGradient(spike.x, spike.y, spike.x + spikeWidth, groundY);
+        spikeGradient.addColorStop(0, '#fb7185');
+        spikeGradient.addColorStop(0.5, '#ef4444');
+        spikeGradient.addColorStop(1, '#991b1b');
+        ctx.fillStyle = spikeGradient;
+        ctx.fill();
+        ctx.restore();
+
+        ctx.fillStyle = '#7f1d1d';
+        ctx.fillRect(spike.x, groundY, spikeWidth, 5);
+      }
+
+      function drawHud() {
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.66)';
+        ctx.beginPath();
+        ctx.roundRect(18, 18, 250, 95, 12);
+        ctx.fill();
+
+        ctx.fillStyle = '#f8fafc';
+        ctx.font = 'bold 26px Arial';
+        ctx.fillText(`Score: ${state.score}`, 30, 52);
+        ctx.fillText(`Best: ${state.best}`, 30, 82);
+        ctx.fillText(`Level: ${state.difficulty.toFixed(1)}`, 30, 112);
+
+        if (!state.running) {
+          ctx.fillStyle = 'rgba(7, 17, 31, 0.78)';
+          ctx.beginPath();
+          ctx.roundRect(canvas.width / 2 - 220, canvas.height / 2 - 70, 440, 120, 18);
+          ctx.fill();
+
+          ctx.fillStyle = '#f8fafc';
+          ctx.font = 'bold 38px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText('Run Over', canvas.width / 2, canvas.height / 2 - 10);
+
+          ctx.font = 'bold 22px Arial';
+          ctx.fillText('Press Space to try again', canvas.width / 2, canvas.height / 2 + 28);
+          ctx.textAlign = 'left';
+        }
+      }
+
+      function render() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawBackground();
+        drawGround();
+
+        for (const spike of state.obstacles) {
+          drawSpike(spike);
+        }
+
+        drawPlayer();
+        drawHud();
+      }
+
+      document.addEventListener('keydown', (event) => {
+        if (event.code === 'Space' || event.code === 'ArrowUp' || event.code === 'KeyW') {
+          event.preventDefault();
+          if (event.repeat) {
+            return;
+          }
+          jump();
+        }
+      });
+
+      canvas.addEventListener('pointerdown', () => {
+        jump();
+      });
+
+      let lastTime = 0;
+      function loop(timestamp) {
+        const delta = timestamp - lastTime || 16;
+        lastTime = timestamp;
+
+        update(delta);
+        render();
+        requestAnimationFrame(loop);
+      }
+
+      resetGame();
+      requestAnimationFrame(loop);
+    </script>
+  </body>
+</html>
